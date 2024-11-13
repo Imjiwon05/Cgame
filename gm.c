@@ -5,6 +5,12 @@
 #define CONSOLE_SIZE_Y 50
 #define Y_SPACE 1
 
+//텍스트 색상 정하기
+void SetColor(WORD textColor) {
+	HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+	SetConsoleTextAttribute(hConsole, textColor);
+}
+
 struct Character {
 	int x;
 	int y;
@@ -13,6 +19,7 @@ struct Character {
 struct Character CHARACTER;
 
 HANDLE hConsole;
+
 
 void ShowCursor_() {                                                        //커서 보이게
 	CONSOLE_CURSOR_INFO cursorInfo = { 1, TRUE };
@@ -33,7 +40,7 @@ void gotoxy(int x, int y) {
 //콘솔창 띄우기
 void SetConsole() {
 	system("My Game");                                                      // 콘솔창 이름 설정
-	system("mode con:cols=100 lines=50");                                  // 콘솔창 크기설정
+	system("mode con:cols=82 lines=47");                                  // 콘솔창 크기설정
 
 	hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
 }
@@ -46,16 +53,37 @@ void ClearCharacter(int x, int y) {                                   //렉 걸림 
 
 //캐릭터 다시 그리기
 void DrawCharacter(int x, int y) {                                    //변경한 위치에 다시 나타나기
+	SetColor(FOREGROUND_GREEN | FOREGROUND_INTENSITY);
 	gotoxy(x, y);
-	printf("■");
+	printf("●");
+	SetColor(FOREGROUND_RED | FOREGROUND_BLUE | FOREGROUND_GREEN);
 }
 
-//텍스트 색상 정하기
-void SetColor(WORD textColor) {
-	HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
-	SetConsoleTextAttribute(hConsole, textColor);
-}
 
+//게임화면 벽 만들기
+void drawWall(int width, int height) {
+	int i, j;
+
+	// 상단 벽
+	for (i = 0; i < width; i++) {
+		gotoxy(i, 0);
+		printf("■");
+	}
+
+	// 하단 벽
+	for (i = 0; i < width; i++) {
+		gotoxy(i, height - 1);
+		printf("■");
+	}
+
+	// 좌우 벽
+	for (i = 1; i < height - 1; i++) {
+		gotoxy(0, i);
+		printf("■");
+		gotoxy(width - 1, i);
+		printf("■");
+	}
+}
 
 //방향키 입력
 void KeyInput() {
@@ -65,23 +93,23 @@ void KeyInput() {
 
 		if (GetAsyncKeyState(VK_LEFT) & 0x8000) {            //특정키 상태 확인(왼쪽화살표) & 0x8000 현재 눌렸는지 확인하는 비트 연산
 			CHARACTER.x--;
-			if (CHARACTER.x < 0)                            //화면 벗어나지 않게
-				CHARACTER.x = 0;
+			if (CHARACTER.x < 1)                            //화면 벗어나지 않게
+				CHARACTER.x = 1;
 		}
 		if (GetAsyncKeyState(VK_RIGHT) & 0x8000) {
 			CHARACTER.x++;
-			if (CHARACTER.x > CONSOLE_SIZE_X - 2)
-				CHARACTER.x = CONSOLE_SIZE_X - 2;
+			if (CHARACTER.x > 78)
+				CHARACTER.x = 78;
 		}
 		if (GetAsyncKeyState(VK_UP) & 0x8000) {
 			CHARACTER.y--;
-			if (CHARACTER.y < 0)
-				CHARACTER.y = 0;
+			if (CHARACTER.y < 1)
+				CHARACTER.y = 1;
 		}
 		if (GetAsyncKeyState(VK_DOWN) & 0x8000) {
 			CHARACTER.y++;
-			if (CHARACTER.y > CONSOLE_SIZE_Y - Y_SPACE)
-				CHARACTER.y = CONSOLE_SIZE_Y - Y_SPACE;
+			if (CHARACTER.y > 36)
+				CHARACTER.y = 36;
 		}
 
 		if (oldX != CHARACTER.x || oldY != CHARACTER.y) {           //캐릭터가 움직였을 때만 화면 다시
@@ -91,13 +119,125 @@ void KeyInput() {
 	}
 }
 
+void start_scene(int c, char color) {
+	SetColor(color);
+	system("cls");
+	if (c == 1 || c == 2 || c == 3 || c == 4 || c == 5 || c == 6 || c == 7) {
+		gotoxy(15, 3);
+		printf("             ________________________________________________");
+		gotoxy(15, 4);
+		printf("            /                                                \\");
+		gotoxy(15, 5);
+		printf("           |    _________________________________________     |");
+		gotoxy(15, 6);
+		printf("           |   |                                         |    |");
+		gotoxy(15, 7);
+		printf("           |   |       ___  __ __   ___   __ ____        |    |");
+		gotoxy(15, 8);
+		printf("           |   |      // \\\\ || ||  // \\\\  || || \\\\       |    |");
+		gotoxy(15, 9);
+		printf("           |   |      ||=|| \\\\ // ((   )) || ||  ))      |    |");
+	}
+	if (c == 2 || c == 3 || c == 4 || c == 5 || c == 6 || c == 7) {
+		gotoxy(15, 10);
+		printf("           |   |      || ||  \\V/   \\\\_//  || ||_//       |    |");
+		gotoxy(15, 11);
+		printf("           |   |                                         |    |");
+		gotoxy(15, 12);
+		printf("           |   |                                         |    |");
+		gotoxy(15, 13);
+		printf("           |   |        ___   ___  ___  ___  ____        |    |");
+		gotoxy(15, 14);
+		printf("           |   |       // \\\\ // \\\\ ||\\\\//|| ||           |    |");
+		gotoxy(15, 15);
+		printf("           |   |      (( ___ ||=|| || \\/ || ||==         |    |");
+	}
+	if (c == 3 || c == 4 || c == 5 || c == 6 || c == 7) {
+		gotoxy(15, 16);
+		printf("           |   |       \\\\_|| || || ||    || ||___        |    |");
+		gotoxy(15, 17);
+		printf("           |   |                                         |    |");
+		gotoxy(15, 18);
+		printf("           |   |_________________________________________|    |");
+		gotoxy(15, 19);
+		printf("           |                                                  |");
+		gotoxy(15, 20);
+		printf("            \\_________________________________________________/");
+		gotoxy(15, 21);
+		printf("                   \\___________________________________/");
+	}
+	if (c == 4 || c == 5 || c == 6 || c == 7) {
+		gotoxy(29, 25);
+		printf("┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓");
+		gotoxy(29, 26);
+		printf("┃\t\t★ ★ ★ 탄막 피하기★ ★ ★\t\t┃");
+		gotoxy(29, 27);
+		printf("┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛");
+	}
+}
+
+void start() {
+	CONSOLE_SCREEN_BUFFER_INFO csbi;
+	int width, height;
+
+	HideCursor_();
+	while (1) {
+		GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
+		width = csbi.srWindow.Right - csbi.srWindow.Left + 1;
+		height = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
+
+		if (width >= 100 && height >= 40) {
+			system("cls");
+			SetColor(FOREGROUND_GREEN | FOREGROUND_INTENSITY);         //rgb  ->  rb, rg, gb
+			gotoxy(35, 15);
+			printf("플레이 가능!");
+			Sleep(2000);
+			system("cls");
+			start_scene(1, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_INTENSITY);
+			Sleep(500);
+			start_scene(2, FOREGROUND_RED | FOREGROUND_BLUE | FOREGROUND_INTENSITY);
+			Sleep(500);
+			start_scene(3, FOREGROUND_GREEN | FOREGROUND_BLUE | FOREGROUND_INTENSITY);
+			Sleep(500);
+			start_scene(4, FOREGROUND_RED | FOREGROUND_GREEN );
+			Sleep(500);
+			start_scene(5, FOREGROUND_GREEN | FOREGROUND_INTENSITY);
+			Sleep(500);
+			start_scene(6, FOREGROUND_BLUE | FOREGROUND_INTENSITY);
+			Sleep(500);
+			start_scene(7, FOREGROUND_RED | FOREGROUND_BLUE | FOREGROUND_INTENSITY);
+			Sleep(300);
+			ShowCursor_();
+			break; // 충분한 크기가 되면 루프 종료
+		}
+		else {
+			system("cls");
+			SetColor(FOREGROUND_RED | FOREGROUND_INTENSITY);
+			gotoxy(30, 11);
+			printf("※전체화면 권장※");
+			gotoxy(20, 15);
+			printf("콘솔 창이 너무 작습니다. 최소 100x40 크기가 필요합니다.");
+			gotoxy(20, 17);
+			printf("현재 크기: %dx%d", width, height);
+			gotoxy(20, 19);
+			printf("콘솔 창 크기를 조정한 후 아무 키나 누르세요...");
+			_getch(); // 사용자 입력 대기
+			system("cls");
+		}
+	}
+}
+
 //=======================================게임 메인 함수=================================================
 void game_main() {
-	CHARACTER.x = 25;
-	CHARACTER.y = 26;
+	int gameWidth = 80;                 //게임 배경 가로 세로 벽 크기
+	int gameHeight = 38;
+
+	CHARACTER.x = gameWidth / 2;
+	CHARACTER.y = gameHeight / 2;
 	CHARACTER.Active = 1;
 
 	system("cls");                                               // 게임 시작 시 한 번만 화면을 지운다
+	drawWall(gameWidth, gameHeight);											//가로 50, 세로 50 벽 세우기
 	DrawCharacter(CHARACTER.x, CHARACTER.y);
 
 	HideCursor_();
@@ -119,7 +259,7 @@ void game_main() {
 //===============================================메인 코딩=======================================
 int main() {
 	SetConsole();
-
+	start();
 
 	while (1) {
 		ShowCursor_();
