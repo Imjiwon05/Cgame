@@ -2,9 +2,51 @@
 #include <stdio.h>
 #include <stdbool.h>  //충돌 감지하기 위해
 
-#define MAX_BULLETS 20
+#define MAX_BULLETS 20   //처음 탄막 갯수
 
 void gameover();
+int score = 0;
+
+//1. 탄막 구조체
+struct Bullet {
+	int x, y;
+	int direction; // 0: 왼쪽에서 오른쪽, 1: 오른쪽에서 왼쪽, 2: 위에서 아래, 3: 아래에서 위
+	int active;
+};
+struct Bullet* bullets = NULL;
+
+//탄막 난이도 조절
+int NextMaxBullets = MAX_BULLETS;
+void adjustDifficulty() {
+	int newMaxBullets = NextMaxBullets;
+
+	if (score >= 4000 && NextMaxBullets < 80) {
+		newMaxBullets = 80;
+	}
+	else if (score >= 3000 && NextMaxBullets < 50) {
+		newMaxBullets = 50;
+	}
+	else if (score >= 2000 && NextMaxBullets < 40) {
+		newMaxBullets = 40;
+	}
+	else if (score >= 1000 && NextMaxBullets < 30) {
+		newMaxBullets = 30;
+	}
+
+	if (newMaxBullets > NextMaxBullets) {
+		struct Bullet* newBullets = (struct Bullet*)realloc(bullets, sizeof(struct Bullet) * newMaxBullets);
+		if (newBullets != NULL) {
+			bullets = newBullets;
+			for (int i = NextMaxBullets; i < newMaxBullets; i++) {
+				bullets[i].active = 0;
+			}
+			NextMaxBullets = newMaxBullets;
+		}
+		else {
+			printf("메모리 재할당 실패\n");
+		}
+	}
+}
 
 //텍스트 색상 정하기
 void SetColor(WORD textColor) {
@@ -60,20 +102,15 @@ void DrawCharacter(int x, int y) {                                    //변경한 �
 	SetColor(FOREGROUND_RED | FOREGROUND_BLUE | FOREGROUND_GREEN);
 }
 
-//1. 탄막 구조체
-struct Bullet {
-	int x, y;
-	int direction; // 0: 왼쪽에서 오른쪽, 1: 오른쪽에서 왼쪽, 2: 위에서 아래, 3: 아래에서 위
-	int active;
-};
-struct Bullet bullets[MAX_BULLETS];
-
 //2.탄막 생성
 void createBullet(int gameWidth, int gameHeight) {
-	for (int i = 0; i < MAX_BULLETS; i++) {
+	int bulletsToCreate = NextMaxBullets / 10;     // 현재 최대 탄막 수의 10%만큼 생성
+	int created = 0;
+	for (int i = 0; i < NextMaxBullets && created < bulletsToCreate; i++) {
 		if (!bullets[i].active) {
 			bullets[i].active = 1;
 			bullets[i].direction = rand() % 4;
+			created++;
 
 			switch (bullets[i].direction) {
 			case 0: // 왼쪽에서 오른쪽
@@ -100,7 +137,7 @@ void createBullet(int gameWidth, int gameHeight) {
 
 //3. 탄막 이동
 void moveBullets(int gameWidth, int gameHeight) {
-	for (int i = 0; i < MAX_BULLETS; i++) {
+	for (int i = 0; i < NextMaxBullets; i++) {
 		if (bullets[i].active) {
 			switch (bullets[i].direction) {
 			case 0: bullets[i].x++; break;
@@ -120,7 +157,7 @@ void moveBullets(int gameWidth, int gameHeight) {
 
 //4, 탄막 그리기
 void drawBullets() {
-	for (int i = 0; i < MAX_BULLETS; i++) {
+	for (int i = 0; i < NextMaxBullets; i++) {
 		if (bullets[i].active) {
 			gotoxy(bullets[i].x, bullets[i].y);
 			printf("*");
@@ -154,7 +191,6 @@ void drawWall(int width, int height) {
 }
 
 //점수
-int score = 0;
 void displayScore(score_x, score_y) {
 	gotoxy(score_x, score_y);
 	SetColor(FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
@@ -163,7 +199,7 @@ void displayScore(score_x, score_y) {
 
 // 충돌 감지 함수
 bool checkCollision() {
-	for (int i = 0; i < MAX_BULLETS; i++) {
+	for (int i = 0; i < NextMaxBullets; i++) {
 		if (bullets[i].active) {
 			if (bullets[i].x == CHARACTER.x && bullets[i].y == CHARACTER.y) {
 				return true; // 충돌 발생
@@ -330,6 +366,15 @@ void game_main() {
 	CHARACTER.y = gameHeight / 2;
 	CHARACTER.Active = 1;
 
+	bullets = (struct Bullet*)malloc(sizeof(struct Bullet) * NextMaxBullets);        //메모리 할당
+	if (bullets == NULL) {
+		printf("메모리 할당 실패\n");
+		exit(1);
+	}
+	for (int i = 0; i < NextMaxBullets; i++) {
+		bullets[i].active = 0;
+	}
+
 	system("cls");                                               // 게임 시작 시 한 번만 화면을 지운다
 	drawWall(gameWidth, gameHeight);											//가로 80, 세로 38 벽 세우기
 	DrawCharacter(CHARACTER.x, CHARACTER.y);
@@ -344,8 +389,10 @@ void game_main() {
 		ULONGLONG currentTime = GetTickCount64();
 		KeyInput();
 
-		// 0.5초마다 새 탄막 생성
-		if (currentTime - lastBulletTime >= 500) {
+		adjustDifficulty();
+
+		// 0.1초마다 새 탄막 생성
+		if (currentTime - lastBulletTime >= 100) {
 			createBullet(gameWidth, gameHeight);
 			lastBulletTime = currentTime;
 		}
@@ -369,8 +416,8 @@ void game_main() {
 		}
 
 		if (checkCollision()) {
-			score += 10; // 점수 증가
-			displayScore(83, 37); // 점수 표시
+			free(bullets);
+			bullets = NULL;
 			gameover();
 			break;
 			// 여기서 필요하다면 탄막 비활성화 또는 게임 종료 등의 추가 로직을 구현할 수 있습니다.
@@ -472,5 +519,8 @@ int main() {
 void gameover() {
 	system("cls");
 	displayScore(20, 10);
+	free(bullets);
+	bullets = NULL;
+	NextMaxBullets = MAX_BULLETS;
 	Sleep(5000);
 }
