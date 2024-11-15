@@ -1,9 +1,10 @@
 #include <windows.h>
 #include <stdio.h>
+#include <stdbool.h>  //충돌 감지하기 위해
 
-#define CONSOLE_SIZE_X 100
-#define CONSOLE_SIZE_Y 50
-#define Y_SPACE 1
+#define MAX_BULLETS 20
+
+void gameover();
 
 //텍스트 색상 정하기
 void SetColor(WORD textColor) {
@@ -59,6 +60,73 @@ void DrawCharacter(int x, int y) {                                    //변경한 �
 	SetColor(FOREGROUND_RED | FOREGROUND_BLUE | FOREGROUND_GREEN);
 }
 
+//1. 탄막 구조체
+struct Bullet {
+	int x, y;
+	int direction; // 0: 왼쪽에서 오른쪽, 1: 오른쪽에서 왼쪽, 2: 위에서 아래, 3: 아래에서 위
+	int active;
+};
+struct Bullet bullets[MAX_BULLETS];
+
+//2.탄막 생성
+void createBullet(int gameWidth, int gameHeight) {
+	for (int i = 0; i < MAX_BULLETS; i++) {
+		if (!bullets[i].active) {
+			bullets[i].active = 1;
+			bullets[i].direction = rand() % 4;
+
+			switch (bullets[i].direction) {
+			case 0: // 왼쪽에서 오른쪽
+				bullets[i].x = 1;
+				bullets[i].y = rand() % (gameHeight - 2) + 1;
+				break;
+			case 1: // 오른쪽에서 왼쪽
+				bullets[i].x = gameWidth - 2;
+				bullets[i].y = rand() % (gameHeight - 2) + 1;
+				break;
+			case 2: // 위에서 아래
+				bullets[i].x = rand() % (gameWidth - 2) + 1;
+				bullets[i].y = 1;
+				break;
+			case 3: // 아래에서 위
+				bullets[i].x = rand() % (gameWidth - 2) + 1;
+				bullets[i].y = gameHeight - 2;
+				break;
+			}
+			break;
+		}
+	}
+}
+
+//3. 탄막 이동
+void moveBullets(int gameWidth, int gameHeight) {
+	for (int i = 0; i < MAX_BULLETS; i++) {
+		if (bullets[i].active) {
+			switch (bullets[i].direction) {
+			case 0: bullets[i].x++; break;
+			case 1: bullets[i].x--; break;
+			case 2: bullets[i].y++; break;
+			case 3: bullets[i].y--; break;
+			}
+
+			// 화면 밖으로 나가면 비활성화
+			if (bullets[i].x <= 0 || bullets[i].x >= gameWidth - 1 ||
+				bullets[i].y <= 0 || bullets[i].y >= gameHeight - 1) {
+				bullets[i].active = 0;
+			}
+		}
+	}
+}
+
+//4, 탄막 그리기
+void drawBullets() {
+	for (int i = 0; i < MAX_BULLETS; i++) {
+		if (bullets[i].active) {
+			gotoxy(bullets[i].x, bullets[i].y);
+			printf("*");
+		}
+	}
+}
 
 //게임화면 벽 만들기
 void drawWall(int width, int height) {
@@ -83,6 +151,26 @@ void drawWall(int width, int height) {
 		gotoxy(width - 1, i);
 		printf("■");
 	}
+}
+
+//점수
+int score = 0;
+void displayScore(score_x, score_y) {
+	gotoxy(score_x, score_y);
+	SetColor(FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
+	printf("Score: %d", score);
+}
+
+// 충돌 감지 함수
+bool checkCollision() {
+	for (int i = 0; i < MAX_BULLETS; i++) {
+		if (bullets[i].active) {
+			if (bullets[i].x == CHARACTER.x && bullets[i].y == CHARACTER.y) {
+				return true; // 충돌 발생
+			}
+		}
+	}
+	return false; // 충돌 없음
 }
 
 //방향키 입력
@@ -191,22 +279,22 @@ void start() {
 			SetColor(FOREGROUND_GREEN | FOREGROUND_INTENSITY);         //rgb  ->  rb, rg, gb
 			gotoxy(35, 15);
 			printf("플레이 가능!");
-			Sleep(2000);
+			Sleep(800);
 			system("cls");
 			start_scene(1, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_INTENSITY);
-			Sleep(500);
+			Sleep(400);
 			start_scene(2, FOREGROUND_RED | FOREGROUND_BLUE | FOREGROUND_INTENSITY);
-			Sleep(500);
+			Sleep(400);
 			start_scene(3, FOREGROUND_GREEN | FOREGROUND_BLUE | FOREGROUND_INTENSITY);
-			Sleep(500);
+			Sleep(400);
 			start_scene(4, FOREGROUND_RED | FOREGROUND_GREEN );
-			Sleep(500);
-			start_scene(5, FOREGROUND_GREEN | FOREGROUND_INTENSITY);
-			Sleep(500);
-			start_scene(6, FOREGROUND_BLUE | FOREGROUND_INTENSITY);
-			Sleep(500);
-			start_scene(7, FOREGROUND_RED | FOREGROUND_BLUE | FOREGROUND_INTENSITY);
 			Sleep(300);
+			start_scene(5, FOREGROUND_GREEN | FOREGROUND_INTENSITY);
+			Sleep(300);
+			start_scene(6, FOREGROUND_BLUE | FOREGROUND_INTENSITY);
+			Sleep(300);
+			start_scene(7, FOREGROUND_RED | FOREGROUND_BLUE | FOREGROUND_INTENSITY);
+			Sleep(200);
 			ShowCursor_();
 			break; // 충분한 크기가 되면 루프 종료
 		}
@@ -231,20 +319,62 @@ void start() {
 void game_main() {
 	int gameWidth = 80;                 //게임 배경 가로 세로 벽 크기
 	int gameHeight = 38;
+	score = 0;
+	ULONGLONG  lastScoreUpdate = GetTickCount64();  // 마지막 점수 업데이트 시간
+	srand(time(NULL)); // 난수 생성기 초기화
+
+	ULONGLONG lastBulletTime = GetTickCount64();
+	ULONGLONG lastMoveTime = GetTickCount64();
 
 	CHARACTER.x = gameWidth / 2;
 	CHARACTER.y = gameHeight / 2;
 	CHARACTER.Active = 1;
 
 	system("cls");                                               // 게임 시작 시 한 번만 화면을 지운다
-	drawWall(gameWidth, gameHeight);											//가로 50, 세로 50 벽 세우기
+	drawWall(gameWidth, gameHeight);											//가로 80, 세로 38 벽 세우기
 	DrawCharacter(CHARACTER.x, CHARACTER.y);
+	displayScore(83, 37);					// 초기 점수 표시
+
+	gotoxy(83, 2);
+	printf("ESC : 메인화면");
 
 	HideCursor_();
 
 	while (1) {
+		ULONGLONG currentTime = GetTickCount64();
 		KeyInput();
 
+		// 0.5초마다 새 탄막 생성
+		if (currentTime - lastBulletTime >= 500) {
+			createBullet(gameWidth, gameHeight);
+			lastBulletTime = currentTime;
+		}
+
+		// 0.1초마다 탄막 이동
+		if (currentTime - lastMoveTime >= 100) {
+			system("cls"); // 화면 지우기
+			drawWall(gameWidth, gameHeight);
+			moveBullets(gameWidth, gameHeight);
+			drawBullets();
+			DrawCharacter(CHARACTER.x, CHARACTER.y);
+			displayScore(83, 37);
+			lastMoveTime = currentTime;
+		}
+
+		// 0.1초마다 점수 업데이트
+		if (currentTime - lastScoreUpdate >= 100) {  // 100ms = 0.1초
+			score += 10;
+			displayScore(83, 37);
+			lastScoreUpdate = currentTime;
+		}
+
+		if (checkCollision()) {
+			score += 10; // 점수 증가
+			displayScore(83, 37); // 점수 표시
+			gameover();
+			break;
+			// 여기서 필요하다면 탄막 비활성화 또는 게임 종료 등의 추가 로직을 구현할 수 있습니다.
+		}
 
 		if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) {
 			break;  // ESC 키로 게임 종료
@@ -339,3 +469,8 @@ int main() {
 }
 
 
+void gameover() {
+	system("cls");
+	displayScore(20, 10);
+	Sleep(5000);
+}
