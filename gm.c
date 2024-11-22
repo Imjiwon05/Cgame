@@ -2,11 +2,31 @@
 #include <stdio.h>
 #include <stdbool.h>  //충돌 감지하기 위해
 #include <conio.h>    //_kbhit()로 키 입력 확인하기 위해
+#include <mmsystem.h>  //배경음악
+#pragma comment(lib, "winmm.lib") //Windows 멀티미디어 라이브러리를 프로젝트에 연결
 
 #define MAX_BULLETS 20   //처음 탄막 갯수
 
 void gameover();
 int score = 0;
+
+//배경음악 재생
+void playBackgroundMusic(song) {
+	if (song == 1) {
+		PlaySound(L"BG.wav", NULL, SND_FILENAME | SND_ASYNC | SND_LOOP);
+	}
+	else if (song == 2) {
+		PlaySound(L"crash.wav", NULL, SND_FILENAME | SND_ASYNC | SND_LOOP);
+	}
+	else if (song == 3) {
+		PlaySound(L"main.wav", NULL, SND_FILENAME | SND_ASYNC | SND_LOOP);
+	}
+}
+
+//배경음악 정지
+void stopBackgroundMusic() {
+	PlaySound(NULL, NULL, 0);
+}
 
 //1. 탄막 구조체
 struct Bullet {
@@ -32,6 +52,9 @@ void adjustDifficulty() {
 	}
 	else if (score >= 1000 && NextMaxBullets < 30) {
 		newMaxBullets = 30;
+	}
+	else if (score >= 5000 && NextMaxBullets < 150) {
+		newMaxBullets = 150;
 	}
 
 	if (newMaxBullets > NextMaxBullets) {
@@ -346,7 +369,7 @@ void start() {
 			printf("현재 크기: %dx%d", width, height);
 			gotoxy(20, 19);
 			printf("콘솔 창 크기를 조정한 후 아무 키나 누르세요...");
-			_getch(); // 사용자 입력 대기
+			(void)_getch(); // 사용자 입력 대기
 			system("cls");
 		}
 	}
@@ -380,6 +403,7 @@ void game_main() {
 	drawWall(gameWidth, gameHeight);											//가로 80, 세로 38 벽 세우기
 	DrawCharacter(CHARACTER.x, CHARACTER.y);
 	displayScore(83, 37);					// 초기 점수 표시
+	playBackgroundMusic(1); //배경음 틀기
 
 	gotoxy(83, 2);
 	printf("ESC : 메인화면");
@@ -417,6 +441,10 @@ void game_main() {
 		}
 
 		if (checkCollision()) {
+			stopBackgroundMusic();
+			playBackgroundMusic(2);
+			Sleep(1000);
+			stopBackgroundMusic();
 			free(bullets);
 			bullets = NULL;
 			gameover();
@@ -425,6 +453,7 @@ void game_main() {
 		}
 
 		if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) {
+			stopBackgroundMusic();  //음악 멈추기
 			break;  // ESC 키로 게임 종료
 		}
 		Sleep(50);       //프레임 조절하게 잠시 대기
@@ -439,9 +468,11 @@ int main() {
 	SetConsole();
 	start();
 
+
 	while (1) {
 		ShowCursor_();
 		system("cls");
+		playBackgroundMusic(3);
 
 		SetColor(FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_INTENSITY);
 		gotoxy(20, 0);
@@ -479,6 +510,7 @@ int main() {
 
 		switch (choice) {
 		case 1:
+			stopBackgroundMusic();
 			game_main();
 			break;
 		case 2:
@@ -499,7 +531,7 @@ int main() {
 			SetColor(FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);             //FOREGROUND_WHITE는 없어서 RGB 섞은 흰색으로
 			gotoxy(20, 20);
 			printf("아무 키나 누르면 메인 메뉴로 돌아갑니다...");
-			_getch();                        //사용자가 키를 누를 때까지 프로그램 일시 중지
+			(void)_getch();                        //사용자가 키를 누를 때까지 프로그램 일시 중지
 			break;
 		case 3:
 			return 0;                       //break하면 메인메뉴로 가져서 return으로 프로그램 종료
@@ -507,7 +539,7 @@ int main() {
 			system("cls");
 			gotoxy(20, 22);
 			printf("잘못된 입력입니다. 아무 키나 누르면 메인 메뉴로 돌아갑니다...");
-			_getch();
+			(void)_getch();
 			break;
 		}
 
