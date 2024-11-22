@@ -9,6 +9,7 @@
 
 void gameover();
 int score = 0;
+int highscore = 0;
 
 //배경음악 재생
 void playBackgroundMusic(song) {
@@ -219,6 +220,8 @@ void displayScore(score_x, score_y) {
 	gotoxy(score_x, score_y);
 	SetColor(FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
 	printf("Score: %d", score);
+	gotoxy(score_x, score_y - 1);
+	printf("최고 점수 %d", highscore);
 }
 
 // 충돌 감지 함수
@@ -554,6 +557,10 @@ void gameover() {
 	free(bullets);
 	bullets = NULL;
 	NextMaxBullets = MAX_BULLETS;
+	if (score > highscore) {
+		highscore = score;    // 새로운 최고 점수 기록
+	}
+
 	gotoxy(15, 3);
 	printf(" _____   ___  ___  ___ _____ ");
 	gotoxy(15, 4);
