@@ -1,6 +1,7 @@
 #include <windows.h>
 #include <stdio.h>
 #include <stdbool.h>  //충돌 감지하기 위해
+#include <conio.h>    //_kbhit()로 키 입력 확인하기 위해
 
 #define MAX_BULLETS 20   //처음 탄막 갯수
 
@@ -518,9 +519,42 @@ int main() {
 
 void gameover() {
 	system("cls");
-	displayScore(20, 10);
 	free(bullets);
 	bullets = NULL;
 	NextMaxBullets = MAX_BULLETS;
-	Sleep(5000);
+	gotoxy(15, 3);
+	printf(" _____   ___  ___  ___ _____ ");
+	gotoxy(15, 4);
+	printf("|  __ \\ / _ \\ |  \\/  ||  ___|");
+	gotoxy(15, 5);
+	printf("| |  \\// /_\\ \\| .  . || |__  ");
+	gotoxy(15, 6);
+	printf("| | __ |  _  || |\/| ||  __|");
+	gotoxy(15, 7);
+	printf("| |_\\ \\| | | || |  | || |___ ");
+	gotoxy(15, 8);
+	printf(" \\____/\\_| |_/\\_|  |_/\\____/ ");
+	gotoxy(15, 11);
+	printf(" _____  _   _ ___________    ");
+	gotoxy(15, 12);
+	printf("|  _  || | | |  ___| ___ \\   ");
+	gotoxy(15, 13);
+	printf("| | | || | | | |__ | |_/ /   ");
+	gotoxy(15, 14);
+	printf("| | | || | | |  __||    /    ");
+	gotoxy(15, 15);
+	printf("\\ \\_/ /\\ \\_/ / |___| |\\ \\    ");
+	gotoxy(15, 16);
+	printf(" \\___/  \\___/\\____/\\_| \\_|   ");
+	displayScore(20, 20);
+	gotoxy(15, 24);
+	printf("Y키를 누르면 메인 메뉴로 돌아갑니다...");
+	while (1) {
+		if (_kbhit()) {
+			char key = _getch();
+			if (key == 'y' || key == 'Y') {
+				break;
+			}
+		}
+	}
 }
