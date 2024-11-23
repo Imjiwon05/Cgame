@@ -119,14 +119,124 @@ void ClearCharacter(int x, int y) {                                   //렉 걸림 
 	printf(" ");
 }
 
+bool shieldActive = false; // 방어막 상태
+
 //캐릭터 다시 그리기
 void DrawCharacter(int x, int y) {                                    //변경한 위치에 다시 나타나기
-	SetColor(FOREGROUND_GREEN | FOREGROUND_INTENSITY);
+	if (shieldActive) {
+		SetColor(FOREGROUND_BLUE | FOREGROUND_INTENSITY);
+	}
+	else {
+		SetColor(FOREGROUND_GREEN | FOREGROUND_INTENSITY);
+	}
 	gotoxy(x, y);
 	printf("●");
 	SetColor(FOREGROUND_RED | FOREGROUND_BLUE | FOREGROUND_GREEN);
 }
 
+//┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ ITEM ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+//아이템 구조체
+struct Item {
+	int x, y;
+	int type;     // 0: 점수 추가, 1: 방어막, 2: 탄막 제거
+	bool active;
+};
+struct Item currentItem = { 0, 0, -1, false };
+
+ULONGLONG itemEffectStartTime = 0;               //아이템 효과가 뭔지 나타내는데 시간 측정
+bool showItemEffect = false;
+int itemEffectType = -1;
+
+//bool shieldActive = false;      // 방어막 상태 <- 충돌 감지 위에 있어야 해서 위에 코딩
+
+//아이템 생성
+void createItem(int gameWidth, int gameHeight) {
+	if (score % 1000 == 0 && score > 0 && !currentItem.active) {      //점수가 1000의 배수일 때 아이템 그리기
+		currentItem.x = rand() % (gameWidth - 2) + 1;
+		currentItem.y = rand() % (gameHeight - 2) + 1;
+		currentItem.type = rand() % 3;
+		currentItem.active = true;
+	}
+}
+
+//아이템 그리기
+void drawItem() {
+	if (currentItem.active) {
+		gotoxy(currentItem.x, currentItem.y);
+		SetColor(FOREGROUND_GREEN | FOREGROUND_INTENSITY);
+		printf("▣");
+		SetColor(FOREGROUND_RED | FOREGROUND_BLUE | FOREGROUND_GREEN);
+	}
+}
+
+// 아이템을 먹었을 때 무슨 능력인지
+void activateItemEffect(int type) {
+	itemEffectType = type;
+	showItemEffect = true;
+	itemEffectStartTime = GetTickCount64();
+}
+
+//아이템 보여주기
+void updateItemEffect() {
+	ULONGLONG currentTime = GetTickCount64();
+
+	if (showItemEffect) {
+		if (currentTime - itemEffectStartTime < 2000) { // 3초 동안 표시
+			gotoxy(83, 10);
+			SetColor(FOREGROUND_RED | FOREGROUND_INTENSITY);
+			printf("┏━━━━━━━━━━━━━━━━━━┓");
+			gotoxy(83, 11);
+			switch (itemEffectType) {
+			case 0:
+				printf("┃    추가 점수+    ┃");
+				break;
+			case 1:
+				printf("┃   방어막 활성화  ┃");
+				break;
+			case 2:
+				printf("┃    탄막 BOOM     ┃");
+				break;
+			}
+			gotoxy(83, 12);
+			printf("┗━━━━━━━━━━━━━━━━━━┛");
+		}
+		else {
+			showItemEffect = false;
+			gotoxy(83, 10);
+			printf("           ");
+			gotoxy(83, 11);
+			printf("           ");
+			gotoxy(83, 12);
+			printf("           ");
+		}
+	}
+}
+
+//아이템 효과
+void applyItemEffect() {
+	if (CHARACTER.x == currentItem.x && CHARACTER.y == currentItem.y) {
+		switch (currentItem.type) {
+			case 0:
+				score += 400;
+				activateItemEffect(0);
+				break;
+			case 1:
+				shieldActive = true;
+				activateItemEffect(1);
+				break;
+			case 2:
+				for (int i = 0; i < NextMaxBullets; i++) {
+					bullets[i].active = 0;
+				}
+				activateItemEffect(2);
+				break;
+			}
+		currentItem.active = false;
+	}
+}
+//┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ ITEM ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+//┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 탄막 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 //2.탄막 생성
 void createBullet(int gameWidth, int gameHeight) {
 	int bulletsToCreate = NextMaxBullets / 10;     // 현재 최대 탄막 수의 10%만큼 생성
@@ -189,6 +299,7 @@ void drawBullets() {
 		}
 	}
 }
+//┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 탄막 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
 //게임화면 벽 만들기
 void drawWall(int width, int height) {
@@ -213,6 +324,8 @@ void drawWall(int width, int height) {
 		gotoxy(width - 1, i);
 		printf("■");
 	}
+	gotoxy(83, 2);
+	printf("ESC : 메인화면");
 }
 
 //점수
@@ -229,7 +342,11 @@ bool checkCollision() {
 	for (int i = 0; i < NextMaxBullets; i++) {
 		if (bullets[i].active) {
 			if (bullets[i].x == CHARACTER.x && bullets[i].y == CHARACTER.y) {
-				return true; // 충돌 발생
+				if (shieldActive) {      //// 방어막이 있으면 충돌 무시
+					shieldActive = false;
+					return false;
+				}
+				return true; // 방어막 없으면 충돌 발생
 			}
 		}
 	}
@@ -383,6 +500,7 @@ void game_main() {
 	int gameWidth = 80;                 //게임 배경 가로 세로 벽 크기
 	int gameHeight = 38;
 	score = 0;
+
 	ULONGLONG  lastScoreUpdate = GetTickCount64();  // 마지막 점수 업데이트 시간
 	srand(time(NULL)); // 난수 생성기 초기화
 
@@ -402,14 +520,17 @@ void game_main() {
 		bullets[i].active = 0;
 	}
 
+	// 아이템 상태 초기화 (아이템을 못 먹고 죽었을 때 그 자리에 있던 아이템을 없애기 위해)
+	currentItem.active = false;
+	itemEffectType = -1;
+	showItemEffect = false;
+
 	system("cls");                                               // 게임 시작 시 한 번만 화면을 지운다
 	drawWall(gameWidth, gameHeight);											//가로 80, 세로 38 벽 세우기
 	DrawCharacter(CHARACTER.x, CHARACTER.y);
 	displayScore(83, 37);					// 초기 점수 표시
 	playBackgroundMusic(1); //배경음 틀기
 
-	gotoxy(83, 2);
-	printf("ESC : 메인화면");
 
 	HideCursor_();
 
@@ -442,6 +563,12 @@ void game_main() {
 			displayScore(83, 37);
 			lastScoreUpdate = currentTime;
 		}
+
+		//아이템 함수들
+		createItem(gameWidth, gameHeight);
+		drawItem();
+		applyItemEffect();
+		updateItemEffect();
 
 		if (checkCollision()) {
 			stopBackgroundMusic();
@@ -528,13 +655,61 @@ int main() {
 			gotoxy(20, 10);
 			printf("◈ 캐릭터는 방향키 버튼으로 이동이 가능합니다.");
 			gotoxy(20, 13);
-			printf("◈ 게임 도중 ESC키를 눌러 일시정지가 가능합니다.");
+			printf("◈ 게임 도중 ESC키를 눌러 메인 화면으로 올 수 있습니다.");
 			gotoxy(20, 16);
+			printf("◈ 시간이 갈 수록 날아오는 탄막이 많아집니다.");
+			gotoxy(20, 19);
 			printf("◈ 탄막을 피해 오래 버티며 높은 점수를 얻으세요.");
 			SetColor(FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);             //FOREGROUND_WHITE는 없어서 RGB 섞은 흰색으로
-			gotoxy(20, 20);
-			printf("아무 키나 누르면 메인 메뉴로 돌아갑니다...");
+			gotoxy(20, 24);
+			printf("아무 키나 누르면 아이템 설명으로 넘어갑니다...");
 			(void)_getch();                        //사용자가 키를 누를 때까지 프로그램 일시 중지
+			system("cls");
+			SetColor(FOREGROUND_RED | FOREGROUND_GREEN);
+			gotoxy(30, 4);
+			printf("┌────────────────────────────┐");
+			gotoxy(30, 5);
+			printf("│         아이템 설명        │");
+			gotoxy(30, 6);
+			printf("└────────────────────────────┘");
+			SetColor(FOREGROUND_GREEN | FOREGROUND_INTENSITY);
+			gotoxy(40, 10);
+			printf("▣ <- 아이템");
+			SetColor(FOREGROUND_RED | FOREGROUND_GREEN);
+			gotoxy(20, 12);
+			printf("◈ 아이템은 점수가 1000의 배수일때마다 랜덤 아이템이 나옵니다.");
+			gotoxy(20, 14);
+			printf("◈ 아이템은 한번에 하나밖에 나오지 않습니다.");
+			gotoxy(20, 16);
+			printf("◈ 어쩔때는 무리하게 먹는 것보다 피하는게 우선일 수도 있습니다.");
+			SetColor(FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);             //FOREGROUND_WHITE는 없어서 RGB 섞은 흰색으로
+			gotoxy(20, 24);
+			printf("아무 키나 누르면 아이템 종류 설명으로 돌아갑니다...");
+			(void)_getch();                        //사용자가 키를 누를 때까지 프로그램 일시 중지
+			system("cls");
+			SetColor(FOREGROUND_GREEN | FOREGROUND_INTENSITY);
+			gotoxy(20, 9);
+			printf("1. 추가 점수+");
+			gotoxy(20, 10);
+			printf("◈ 추가 점수를 얻을 수 있는 아이템입니다.");
+			gotoxy(20, 11);
+			printf("◈ 갑자기 점수가 올라 난이도가 확 올라갈 수 있습니다.");
+			gotoxy(20, 14);
+			printf("2. 방어막");
+			gotoxy(20, 15);
+			printf("◈ 탄막을 한번 막아주는 방어막이 생깁니다.");
+			gotoxy(20, 16);
+			printf("◈ 방어막이 있는 상태라면 플레이어의 색이 파란색으로 변합니다.");
+			gotoxy(20, 19);
+			printf("3. 탄막 BOOM");
+			gotoxy(20, 20);
+			printf("◈ 날아오는 모든 탄막을 없앱니다.");
+			gotoxy(20, 21);
+			printf("◈ 후반에 탄막이 많이 나올 때 얻으면 좋은 아이템 입니다.");
+			SetColor(FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);             //FOREGROUND_WHITE는 없어서 RGB 섞은 흰색으로
+			gotoxy(20, 24);
+			printf("아무 키나 누르면 메인 화면으로 돌아갑니다...");
+			(void)_getch();
 			break;
 		case 3:
 			return 0;                       //break하면 메인메뉴로 가져서 return으로 프로그램 종료
